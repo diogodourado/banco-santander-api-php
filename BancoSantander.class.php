@@ -51,7 +51,7 @@ class BancoSantander
             'Content-Type: application/x-www-form-urlencoded',
             "client_id: {$this->clientId}",
             "client_secret: {$this->clientSecret}"
-        ) : array('Authorization: Bearer ' . $BearerToken, 'x-conta-corrente: ' . $this->contaCorrente, 'Content-Type: application/json');
+        ) : array('Authorization: Bearer ' . $BearerToken, 'Content-Type: application/json');
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
         if ($method === 'POST') {
