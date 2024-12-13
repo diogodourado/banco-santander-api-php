@@ -1,1 +1,5 @@
 .vscode/sftp.json
+.vscode/*
+config.php
+test.php
+index.php
