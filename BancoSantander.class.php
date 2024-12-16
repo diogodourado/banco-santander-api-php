@@ -1,87 +1,150 @@
 <?php
-class BancoSantander
-{
-    private $contaCorrente, $clientId, $clientSecret, $certPath, $keyPath, $tokenPath, $baseUrl, $scope, $cpfCnpj;
 
-    public function __construct(string $type = '')
+class SantanderAPI
+{
+    private string $clientId;
+    private string $clientSecret;
+    private string $baseUrl;
+    private string $accessToken;
+
+    private string $tokenPath;
+
+    private string $certKeyFile;
+    private string $certKeyPassword;
+
+    private string $certFile;
+
+    public function __construct()
     {
         include 'config.php';
     }
 
-
-
-    function getBearerToken()
+    /**
+     * Autenticar na API / Recuperar ou solicitar Token
+     */
+    public function authenticate(): bool
     {
-        if (!file_exists($this->tokenPath) || file_exists($this->tokenPath) && (time() - filemtime($this->tokenPath) > 3000))
-            return $this->generateBearerToken();
+        $url = $this->baseUrl . '/auth/oauth/v2/token';
+
+        $postData = [
+            'client_id' => $this->clientId,
+            'client_secret' => $this->clientSecret,
+            'grant_type' => 'client_credentials'
+        ];
+
+        $response = $this->makeRequest('POST', $url, $postData);
+
+        if (isset($response['access_token'])) {
+            $this->accessToken = $response['access_token'];
+            file_put_contents($this->tokenPath, $response['access_token']);
+            return true;
+        }
+
+        return false;
+    }
+
+    // Função para recuperar o token do arquivo
+    function generateToken()
+    {
+        if ($this->isTokenExpired()) {
+            $this->authenticate();
+            return $this->getAccessToken();
+        }
 
         return file_get_contents($this->tokenPath);
     }
 
-    function generateBearerToken()
+    // Função para verificar se token esta expirado
+    function isTokenExpired()
     {
-
-        $response = $this->request('POST', 'oauth/v2/token', [
-            'client_id' => $this->clientId,
-            'client_secret' => $this->clientSecret,
-            'grant_type' => 'client_credentials',
-        ], true);
-
-        file_put_contents($this->tokenPath, $response['access_token']);
-
-        return $response['access_token'];
+        if (!file_exists($this->tokenPath)) {
+            return true; // Arquivo não existe, considera como expirado
+        }
+        // Verifica se o token foi modificado há mais de 12 minutos (720 segundos)
+        return (time() - filemtime($this->tokenPath)) > 720;
     }
 
-    function request(string $method, string $endpoint, array $data = [], bool $noAuth = false)
+    /**
+     * Create a workspace.
+     */
+    public function createWorkspace(array $workspaceData): array
     {
-        if ($noAuth === false)
-            $BearerToken = $this->getBearerToken();
+        $url = $this->baseUrl . '/collection_bill_management/v2/workspaces';
+        return $this->makeRequest('POST', $url, $workspaceData, true);
+    }
 
+    /**
+     * Get all workspaces.
+     */
+    public function getWorkspaces(): array
+    {
+        $url = $this->baseUrl . '/collection_bill_management/v2/workspaces';
+        return $this->makeRequest('GET', $url, [], true);
+    }
+
+    /**
+     * Get a workspace by ID.
+     */
+    public function getWorkspaceById(string $workspaceId): array
+    {
+        $url = $this->baseUrl . "/collection_bill_management/v2/workspaces/$workspaceId";
+        return $this->makeRequest('GET', $url, [], true);
+    }
+
+    /**
+     * Generic method to make API requests.
+     */
+    private function makeRequest(string $method, string $url, array $data = [], bool $auth = false): array
+    {
         $ch = curl_init();
-        $url = $this->baseUrl . '/' . ltrim($endpoint, '/');
-        $method = strtoupper($method);
 
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_SSLCERT => $this->certPath,
-            CURLOPT_RETURNTRANSFER => true,
-        ]);
+        $headers = ['application/x-www-form-urlencoded'];
+        $dataFields = http_build_query($data);
 
-        $headers = $noAuth === true ? array(
-            'Content-Type: application/x-www-form-urlencoded',
-            "client_id: {$this->clientId}",
-            "client_secret: {$this->clientSecret}"
-        ) : array('Authorization: Bearer ' . $BearerToken, 'Content-Type: application/json');
+        if ($auth && $this->accessToken) {
+            $headers = ['Content-Type: application/json'];
+            $headers[] = 'Authorization: Bearer ' . $this->accessToken;
+            $headers[] = 'X-Application-Key: ' . $this->clientId;
+            $dataFields = json_encode($data);
+        }
+
+        if ($method === 'POST' || $method === 'PATCH') {
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $dataFields);
+        }
+
+        if ($method === 'PATCH') {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH');
+        }
+
+        // Configurações de certificado
+        curl_setopt($ch, CURLOPT_SSLCERT, $this->certFile);
+
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true); // Verifica o certificado SSL
+        curl_setopt($ch, CURLOPT_SSLCERT, $this->certFile); // Define o certificado
+        curl_setopt($ch, CURLOPT_SSLKEY, $this->certKeyFile); // Define a chave privada
+
+        curl_setopt($ch, CURLOPT_SSLKEYPASSWD, $this->certKeyPassword);
+
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
 
-        if ($method === 'POST') {
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $noAuth === true ? http_build_query($data) : json_encode($data));
-        } elseif (in_array($method, ['PUT', 'DELETE'], true)) {
-            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $method === 'DELETE' ? http_build_query($data) : json_encode($data));
-        } elseif ($method === 'GET' && !empty($data)) {
-            $url .= '?' . http_build_query($data);
-            curl_setopt($ch, CURLOPT_URL, $url);
-        }
-
-        $serverResponse = curl_exec($ch);
-
-        if ($serverResponse === false) {
-            $error = curl_error($ch);
-            curl_close($ch);
-            throw new Exception("Erro cURL: $error");
-        }
-
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        $response = json_decode($serverResponse, true);
-
-        if ($serverResponse != '' && (json_last_error() !== JSON_ERROR_NONE)) {
-            $serverResponseJson = json_encode($serverResponse);
-            throw new Exception("Erro ao decodificar JSON: " . json_last_error_msg() . " - Mensagem recebida:" . $serverResponseJson);
+        if ($httpCode >= 200 && $httpCode < 300) {
+            return json_decode($response, true);
         }
 
-        return $response;
+        return ['error' => 'Request failed', 'status_code' => $httpCode, 'response' => $response];
+    }
+
+
+    public function getAccessToken(): string
+    {
+        return $this->accessToken;
     }
 }
