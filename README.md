@@ -24,8 +24,11 @@ Para configurar cobranças via Boleto ou PIX, consulte a [documentação oficial
 
 Certifique-se de configurar os seguintes parâmetros antes de utilizar a classe:
 
-- **Certificado digital (arquivo `.crt` e chave privada `.key`)**: Necessários para autenticação na API.
+- **Certificado digital (arquivo `.pem` e chave privada `.key`)**: Necessários para autenticação na API.
 - **Credenciais de API**: Incluem `client_id` e `client_secret`, obtidos no painel de desenvolvedores do Banco Santander.
+
+Caso tenha alguma dúvida de como converter o seu certificado, escrevi um post no meu blog:
+[dourado.net - Conversão de Certificados .p12 para .pem na Integração de APIs do Banco Santander com PHP](https://dourado.net/2024/12/16/conversao-de-certificados-p12-para-pem-na-integracao-de-apis-do-banco-santander-com-php/)
 
 ## 🚀 Exemplos de Uso
 ```php
@@ -33,66 +36,13 @@ require 'BancoSantander.class.php';
 $bancoSantander = new BancoSantander();
 ```
 
-### Geração de cobrança (Boleto/PIX)
+### Example
 ```php
 $params = [
-    "seuNumero" => "1",
-    "valorNominal" => 2.5,
-    "dataVencimento" => '2025-01-18',
-    "numDiasAgenda" => 60,
-    "pagador" => [
-        "email" => "nome.sobrenome@xis-domain.com.br",
-        "ddd" => "38",
-        "telefone" => "999999999",
-        "numero" => "3456",
-        "complemento" => "apartamento 3 bloco 4",
-        "cpfCnpj" => "11122233344",
-        "tipoPessoa" => "FISICA",
-        "nome" => "Diogo Dourado",
-        "endereco" => "Avenida da Felicidad, 123456",
-        "bairro" => "Centro",
-        "cidade" => "Montes Claros",
-        "uf" => "MG",
-        "cep" => "39400000"
-    ]
+    'aa' => 'bbb',
 ];
-$codigoSolicitacao = $bancoSantander->cobrancaSet($params);
-print_r($codigoSolicitacao);
-```
-
-### Consulta cobrança (Boleto/PIX)
-```php
-$cobranca = $bancoSantander->cobrancaGet($codigoSolicitacao);
-print_r($$cobranca);
-```
-
-### Recuperando cobrança em PDF (Boleto/PIX)
-```php
-$pdf_base64 = $bancoSantander->cobrancaGetPdf($codigoSolicitacao);
-```
-
-### Cancelando cobrança (Boleto/PIX)
-```php
-$result = $bancoSantander->cobrancaCancel($codigoSolicitacao, 'Motivo do cancelamento aqui.');
+$result = $bancoSantander->cmd($params);
 print_r($result);
-```
-
-### Listar cobranças (Boleto/PIX)
-```php
-$params = [
-    'dataInicial' => '2024-12-01',
-    'dataFinal' => '2024-12-20',
-    'filtrarDataPor' => 'EMISSAO',
-    'situacao' => NULL,
-    'pessoaPagadora' => NULL,
-    'cpfCnpjPessoaPagadora' => NULL,
-    'seuNumero' => NULL,
-    'paginacao' => NULL,
-    'ordenarPor' => NULL,
-    'tipoOrdenacao' => NULL,
-];
-$codigoSolicitacao = $bancoSantander->cobrancaList($params);
-print_r($codigoSolicitacao);
 ```
 
 ## 📝 Licença
