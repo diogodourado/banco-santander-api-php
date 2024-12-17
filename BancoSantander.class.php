@@ -1,6 +1,6 @@
 <?php
 
-class SantanderAPI
+class BancoSantander
 {
     private string $clientId;
     private string $clientSecret;

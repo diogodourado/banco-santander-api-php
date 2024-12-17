@@ -24,7 +24,7 @@ Para configurar cobranças via Boleto ou PIX, consulte a [documentação oficial
 
 Certifique-se de configurar os seguintes parâmetros antes de utilizar a classe:
 
-- **Certificado digital (arquivo `.pem` e chave privada `.key`)**: Necessários para autenticação na API.
+- **Certificado digital (sendo dois arquivos `.pem`, um da chave privada e outro da chave pública)**: Necessários para autenticação na API.
 - **Credenciais de API**: Incluem `client_id` e `client_secret`, obtidos no painel de desenvolvedores do Banco Santander.
 
 Caso tenha alguma dúvida de como converter o seu certificado, escrevi um post no meu blog:
@@ -34,9 +34,35 @@ Caso tenha alguma dúvida de como converter o seu certificado, escrevi um post n
 ```php
 require 'BancoSantander.class.php';
 $bancoSantander = new BancoSantander();
+$santanderAPI = new SantanderAPI([
+    'baseUrl' => 'https://trust-open.api.santander.com.br',
+
+    'clientId' => 'seuClientId',
+    'clientSecret' => 'seuClientSecret',
+
+    'tokenPath' => '/path/para/token',
+
+    'certKeyFile' => '/path/para/certkey.pem',
+    'certKeyPassword' => 'suaSenha',
+
+    'certFile' => '/path/para/cert.pem',
+]);
 ```
 
-### Example
+Em todas as funções, o código já checka o token de autenticação, se ele existe e se ele é valido, se não, gera um novo. Isso evita de gerar o token a cada requisição, fazendo o reaproveitamento do mesmo.
+
+### O primeiro passo é a criaçao do Workspace
+O Workspace é onde você define qual o convênio usado e configura a sua URL do Webhook para retorno.
+```php
+$params = [
+    'aa' => 'bbb',
+];
+$result = $bancoSantander->cmd($params);
+print_r($result);
+```
+
+### Depois ja é possivel registrar as cobranças (boleto / pix)
+Para registrar a cobrança, você ira precisar do ID do Workspace criado anteriormente
 ```php
 $params = [
     'aa' => 'bbb',
