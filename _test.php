@@ -1,6 +1,6 @@
 <?
 
-$santanderAPI = new SantanderAPI([
+$BancoSantander = new BancoSantander([
     'baseUrl' => 'https://trust-open.api.santander.com.br',
 
     'clientId' => 'seuClientId',

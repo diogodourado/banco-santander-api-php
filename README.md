@@ -31,33 +31,34 @@ Caso tenha alguma dúvida de como converter o seu certificado, escrevi um post n
 [dourado.net - Conversão de Certificados .p12 para .pem na Integração de APIs do Banco Santander com PHP](https://dourado.net/2024/12/16/conversao-de-certificados-p12-para-pem-na-integracao-de-apis-do-banco-santander-com-php/)
 
 ## 🚀 Exemplos de Uso
+Em todas as funções, o código já checka o token de autenticação, se ele existe e se ele é valido, se não, gera um novo. Isso evita de gerar o token a cada requisição, fazendo o reaproveitamento do mesmo.
+
 ```php
 require 'BancoSantander.class.php';
-$bancoSantander = new BancoSantander();
-$santanderAPI = new SantanderAPI([
+$BancoSantander = new BancoSantander([
     'baseUrl' => 'https://trust-open.api.santander.com.br',
-
-    'clientId' => 'seuClientId',
-    'clientSecret' => 'seuClientSecret',
-
-    'tokenPath' => '/path/para/token',
-
-    'certKeyFile' => '/path/para/certkey.pem',
-    'certKeyPassword' => 'suaSenha',
-
-    'certFile' => '/path/para/cert.pem',
+    'clientId' => 'Seu Client ID',
+    'clientSecret' => 'Seu Client Secret',
+    'tokenPath' => 'Caminho para armazenar o token',
+    'certKeyFile' => 'Caminho para o arquivo da chave privada',
+    'certKeyPassword' => 'Senha da chave privada (opcional)',
+    'certFile' => 'Caminho para o arquivo do certificado',
 ]);
 ```
 
-Em todas as funções, o código já checka o token de autenticação, se ele existe e se ele é valido, se não, gera um novo. Isso evita de gerar o token a cada requisição, fazendo o reaproveitamento do mesmo.
 
 ### O primeiro passo é a criaçao do Workspace
 O Workspace é onde você define qual o convênio usado e configura a sua URL do Webhook para retorno.
 ```php
-$params = [
-    'aa' => 'bbb',
-];
-$result = $bancoSantander->cmd($params);
+$paramsWorkspace = [
+        'type' => 'BILLING',
+        'description' => 'Workspace de Cobrança',
+        'covenants' => [['code' => '1234567']], // Número do convenio (solicite o seu Gerente)
+        'webhookURL' => 'https://seu-dominio.com/santander-webhook/',
+        'bankSlipBillingWebhookActive' => true,
+        'pixBillingWebhookActive' => true
+    ];
+$result = $bancoSantander->createWorkspace($paramsWorkspace);
 print_r($result);
 ```
 
@@ -71,10 +72,74 @@ $result = $bancoSantander->cmd($params);
 print_r($result);
 ```
 
+## Funções Disponíveis
+
+### Autenticação
+- **`getAccessToken()`**  
+  Retorna o token de acesso atual.
+
+- **`generateToken()`**  
+  Recupera ou solicita um novo token de acesso.
+
+- **`isTokenExpired()`**  
+  Verifica se o token está expirado.
+
+- **`authenticate()`**  
+  Realiza a autenticação na API e armazena o token.
+
+---
+
+### Workspaces
+- **`createWorkspace(array $workspaceData)`**  
+  Cria um novo workspace.
+
+- **`getWorkspaces()`**  
+  Retorna todos os workspaces.
+
+- **`getWorkspaceById(string $workspaceId)`**  
+  Retorna informações de um workspace específico pelo ID.
+
+---
+
+### Boletos Bancários
+- **`registerBankSlip(string $workspaceId, array $bankSlipData)`**  
+  Registra um boleto bancário ou PIX em um workspace.
+
+- **`getBankSlips(string $workspaceId, array $queryParams)`**  
+  Retorna todos os boletos de um workspace, com filtros opcionais.
+
+- **`getBankSlipById(string $workspaceId, string $bankSlipId)`**  
+  Retorna informações detalhadas de um boleto bancário específico.
+
+- **`sendBankSlipInstructions(string $workspaceId, array $instructionData)`**  
+  Envia instruções para um boleto bancário.
+
+---
+
+### Contas Detalhadas
+- **`getDetailedBills(array $queryParams)`**  
+  Retorna informações detalhadas de contas com base em filtros.
+
+- **`generateBankSlipPDF(string $billId, array $bankSlipData)`**  
+  Gera um PDF para um boleto bancário.
+
+---
+
+### Métodos Internos
+- **`makeRequest(string $method, string $url, array $data = [], bool $auth = false)`**  
+  Realiza chamadas genéricas à API utilizando `cURL`.
+
+---
+
+## Requisitos
+- PHP 7.4+
+- Extensões `cURL` e `openssl` ativas.
+
+---
+
 ## 📝 Licença
 
 Este projeto está licenciado sob a [MIT License](LICENSE).
-
 
 ## 💰 Contribua com o Desenvolvimento
 
