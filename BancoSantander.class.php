@@ -14,10 +14,50 @@ class SantanderAPI
 
     private string $certFile;
 
-    public function __construct()
+    public function __construct(array $config)
     {
-        include 'config.php';
+        $this->baseUrl = $config['baseUrl'] ?? throw new InvalidArgumentException('baseUrl é obrigatório.');
+
+        $this->clientId = $config['clientId'] ?? throw new InvalidArgumentException('clientId é obrigatório.');
+        $this->clientSecret = $config['clientSecret'] ?? throw new InvalidArgumentException('clientSecret é obrigatório.');
+
+        $this->tokenPath = $config['tokenPath'] ?? throw new InvalidArgumentException('tokenPath (Caminho para armazenar o token) é obrigatório.');
+
+        $this->certKeyFile = $config['certKeyFile'] ?? throw new InvalidArgumentException('certKeyFile (Chave Privada) é obrigatória.');
+        $this->certKeyPassword = $config['certKeyPassword'] ?? '';
+
+        $this->certFile = $config['certFile'] ?? throw new InvalidArgumentException('certFile (Certificado) é obrigatório.');
+
+        $this->accessToken =  $this->generateToken() ?? '';
     }
+
+
+    public function getAccessToken(): string
+    {
+        return $this->accessToken;
+    }
+
+    // Função para recuperar o token do arquivo
+    function generateToken()
+    {
+        if ($this->isTokenExpired()) {
+            $this->authenticate();
+            return $this->getAccessToken();
+        }
+
+        return file_get_contents($this->tokenPath);
+    }
+
+    // Função para verificar se token esta expirado
+    function isTokenExpired()
+    {
+        if (!file_exists($this->tokenPath)) {
+            return true; // Arquivo não existe, considera como expirado
+        }
+        // Verifica se o token foi modificado há mais de 12 minutos (720 segundos)
+        return (time() - filemtime($this->tokenPath)) > 720;
+    }
+
 
     /**
      * Autenticar na API / Recuperar ou solicitar Token
@@ -41,27 +81,6 @@ class SantanderAPI
         }
 
         return false;
-    }
-
-    // Função para recuperar o token do arquivo
-    function generateToken()
-    {
-        if ($this->isTokenExpired()) {
-            $this->authenticate();
-            return $this->getAccessToken();
-        }
-
-        return file_get_contents($this->tokenPath);
-    }
-
-    // Função para verificar se token esta expirado
-    function isTokenExpired()
-    {
-        if (!file_exists($this->tokenPath)) {
-            return true; // Arquivo não existe, considera como expirado
-        }
-        // Verifica se o token foi modificado há mais de 12 minutos (720 segundos)
-        return (time() - filemtime($this->tokenPath)) > 720;
     }
 
     /**
@@ -143,8 +162,57 @@ class SantanderAPI
     }
 
 
-    public function getAccessToken(): string
+    /**
+     * Register a bank slip (boleto/pix).
+     */
+    public function registerBankSlip(string $workspaceId, array $bankSlipData): array
     {
-        return $this->accessToken;
+        $url = $this->baseUrl . "/collection_bill_management/v2/workspaces/$workspaceId/bank_slips";
+        return $this->makeRequest('POST', $url, $bankSlipData, true);
+    }
+
+    /**
+     * Get all bank slips for a workspace.
+     */
+    public function getBankSlips(string $workspaceId, array $queryParams): array
+    {
+        $url = $this->baseUrl . "/collection_bill_management/v2/workspaces/$workspaceId/bank_slips?" . http_build_query($queryParams);;
+        return $this->makeRequest('GET', $url, [], true);
+    }
+
+    /**
+     * Get a bank slip by ID.
+     */
+    public function getBankSlipById(string $workspaceId, string $bankSlipId): array
+    {
+        $url = $this->baseUrl . "/collection_bill_management/v2/workspaces/$workspaceId/bank_slips/$bankSlipId";
+        return $this->makeRequest('GET', $url, [], true);
+    }
+
+    /**
+     * Send instructions for a bank slip.
+     */
+    public function sendBankSlipInstructions(string $workspaceId, array $instructionData): array
+    {
+        $url = $this->baseUrl . "/collection_bill_management/v2/workspaces/$workspaceId/bank_slips";
+        return $this->makeRequest('PATCH', $url, $instructionData, true);
+    }
+
+    /**
+     * Get detailed bills information with filters.
+     */
+    public function getDetailedBills(array $queryParams): array
+    {
+        $url = $this->baseUrl . "/collection_bill_management/v2/bills?" . http_build_query($queryParams);
+        return $this->makeRequest('GET', $url, [], true);
+    }
+
+    /**
+     * Generate a PDF for a bank slip.
+     */
+    public function generateBankSlipPDF(string $billId, array $bankSlipData): array
+    {
+        $url = $this->baseUrl . "/collection_bill_management/v2/bills/$billId/bank_slips";
+        return $this->makeRequest('POST', $url, $bankSlipData, true);
     }
 }
