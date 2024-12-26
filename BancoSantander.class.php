@@ -1,5 +1,16 @@
 <?php
 
+/**
+ * Classe BancoSantander
+ * 
+ * Classe responsável pela integração com a API do Banco Santander, 
+ * incluindo autenticação e operações relacionadas a workspaces, webhook, boletos bancários e PIX.
+ * 
+ * Autor: Diogo Dourado <diogo@dourado.net>
+ * Repositório: https://github.com/diogodourado/banco-santander-api-php
+ */
+
+
 class BancoSantander
 {
     private string $clientId;
