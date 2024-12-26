@@ -154,13 +154,16 @@ class BancoSantander
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($httpCode >= 200 && $httpCode < 300) {
-            return json_decode($response, true);
-        }
+        if ($httpCode > 300)
+            throw new Exception("Request failed with status code {$httpCode}: {$response}");
 
-        return ['error' => 'Request failed', 'status_code' => $httpCode, 'response' => $response];
+        $result = json_decode($response, true);
+
+        if (isset($result['error']))
+            throw new Exception("Request failed with status code {$result['status_code']}: {$result['status_code']}");
+
+        return $result;
     }
-
 
     /**
      * Register a bank slip (boleto/pix).
